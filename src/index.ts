@@ -110,7 +110,6 @@ program
                     const dom = await JSDOM.fromURL(siteUrl);
                     const reader = new Readability(dom.window.document, {
                       keepClasses: true,
-                      disableJSONLD: false,
                     });
                     const article = reader.parse();
 
