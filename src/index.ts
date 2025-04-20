@@ -85,15 +85,13 @@ program
         // URL処理関数を定義
         const processUrl = async (siteUrl: string) => {
           console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
-          
+
           const result = await Parser.parse(siteUrl, {
             contentType: "markdown",
           });
 
           if (!result || !result.content) {
-            console.log(
-              chalk.yellow(`No content found for ${siteUrl}`),
-            );
+            console.log(chalk.yellow(`No content found for ${siteUrl}`));
             throw new Error("No content found");
           }
 
@@ -146,7 +144,7 @@ ${markdown}
             );
             console.log(
               chalk.yellow(
-                `Attempt ${retryCount}/${maxRetries} failed for ${error.options?.url || 'unknown URL'}: ${error.message}`,
+                `Attempt ${retryCount}/${maxRetries} failed for ${error.options?.url || "unknown URL"}: ${error.message}`,
               ),
             );
             console.log(
@@ -158,7 +156,7 @@ ${markdown}
         };
 
         // スロットリング関数を作成
-        const throttledFn = 
+        const throttledFn =
           rateLimitPerSecond > 0
             ? pThrottle({
                 limit: rateLimitPerSecond,
