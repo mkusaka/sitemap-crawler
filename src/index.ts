@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { JSDOM } from "jsdom";
 import Parser from "@postlight/parser";
 import chalk from "chalk";
 import { writeFile, mkdir } from "fs/promises";
