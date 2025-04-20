@@ -17,13 +17,13 @@ git clone https://github.com/mkusaka/sitemap-crawler.git
 cd sitemap-crawler
 
 # Install dependencies
-npm install
+pnpm install
 
 # Build the project
-npm run build
+pnpm run build
 
 # Link the CLI globally (optional)
-npm link
+pnpm link --global
 ```
 
 ## Usage
