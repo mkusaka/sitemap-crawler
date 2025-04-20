@@ -10,6 +10,7 @@ import pRetry from "p-retry";
 import pThrottle from "p-throttle";
 import { dump as yamlDump } from "js-yaml";
 import crypto from "crypto";
+import { JSDOM } from "jsdom";
 
 interface CrawlOptions {
   output?: string;
@@ -86,7 +87,7 @@ program
           console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
 
           const result = await Parser.parse(siteUrl, {
-            contentType: "markdown",
+            contentType: "html",
           });
 
           if (!result || !result.content) {
@@ -94,7 +95,34 @@ program
             throw new Error("No content found");
           }
 
-          const markdown = result.content;
+          const container = new JSDOM().window.document.createElement('div');
+          container.innerHTML = result.content;
+
+          container.querySelectorAll('a[href], img[src], script[src], link[href]').forEach(el => {
+            const attr = el.hasAttribute('href') ? 'href' : 'src';
+            const original = el.getAttribute(attr);
+            try {
+              if (original) {
+                const absolute = new URL(original, result.url).href;
+                el.setAttribute(attr, absolute);
+              }
+            } catch (e) {
+            }
+          });
+
+          const processedHtml = container.innerHTML;
+
+          const markdownResult = await Parser.parse(siteUrl, {
+            contentType: "markdown",
+            html: processedHtml,
+          });
+
+          if (!markdownResult || !markdownResult.content) {
+            console.log(chalk.yellow(`Failed to convert to markdown for ${siteUrl}`));
+            throw new Error("Markdown conversion failed");
+          }
+
+          const markdown = markdownResult.content;
 
           const metadata = {
             title: result.title,
