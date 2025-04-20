@@ -105,7 +105,7 @@ program
                     console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
 
                     const result = await Parser.parse(siteUrl, {
-                      contentType: 'markdown',
+                      contentType: "markdown",
                     });
 
                     if (!result || !result.content) {

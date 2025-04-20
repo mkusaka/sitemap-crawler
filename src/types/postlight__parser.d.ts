@@ -1,1 +1,1 @@
-declare module '@postlight/parser';
+declare module "@postlight/parser";
