@@ -94,23 +94,6 @@ program
           const filename = urlToFilename(siteUrl);
           const filePath = resolve(outputPath, filename);
 
-          if (options.cache) {
-            try {
-              await access(filePath, constants.F_OK);
-              console.log(
-                chalk.yellow(
-                  `File ${filePath} already exists, skipping (--cache enabled)`,
-                ),
-              );
-              return {
-                success: true,
-                url: siteUrl,
-                path: filePath,
-                cached: true,
-              };
-            } catch (error) {}
-          }
-
           const result = await Parser.parse(siteUrl, {
             contentType: "html",
           });
@@ -220,6 +203,30 @@ ${markdown}
                 return await pRetry(() => processUrl(siteUrl), retryOptions);
               };
 
+        const checkCache = async (siteUrl: string) => {
+          if (!options.cache) return false;
+
+          const filename = urlToFilename(siteUrl);
+          const filePath = resolve(outputPath, filename);
+
+          try {
+            await access(filePath, constants.F_OK);
+            console.log(
+              chalk.yellow(
+                `File ${filePath} already exists, skipping (--cache enabled)`,
+              ),
+            );
+            return {
+              success: true,
+              url: siteUrl,
+              path: filePath,
+              cached: true,
+            };
+          } catch (error) {
+            return false;
+          }
+        };
+
         const results = await Promise.allSettled(
           sites.map(async (siteUrl: string, i: number) => {
             console.log(
@@ -227,6 +234,11 @@ ${markdown}
             );
 
             try {
+              const cachedResult = await checkCache(siteUrl);
+              if (cachedResult) {
+                return cachedResult;
+              }
+
               return await throttledFn(siteUrl);
             } catch (error) {
               console.error(
