@@ -2,17 +2,14 @@
 
 import { Command } from "commander";
 import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
+import Parser from "@postlight/parser";
 import chalk from "chalk";
 import { writeFile, mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
 import Sitemapper from "sitemapper";
-import TurndownService from "turndown";
 import pRetry from "p-retry";
 import pThrottle from "p-throttle";
 import { dump as yamlDump } from "js-yaml";
-
-const turndownService = new TurndownService();
 
 interface CrawlOptions {
   output?: string;
@@ -107,33 +104,30 @@ program
                   async () => {
                     console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
 
-                    const dom = await JSDOM.fromURL(siteUrl);
-                    const reader = new Readability(dom.window.document, {
-                      keepClasses: true,
+                    const result = await Parser.parse(siteUrl, {
+                      contentType: 'markdown',
                     });
-                    const article = reader.parse();
 
-                    if (!article) {
+                    if (!result || !result.content) {
                       console.log(
                         chalk.yellow(`No content found for ${siteUrl}`),
                       );
                       throw new Error("No content found");
                     }
 
-                    const markdown = turndownService.turndown(
-                      article.content || "",
-                    );
+                    const markdown = result.content;
 
                     const metadata = {
-                      title: article.title,
-                      excerpt: article.excerpt,
-                      siteName: article.siteName,
+                      title: result.title,
+                      excerpt: result.excerpt,
+                      siteName: result.domain,
                       url: siteUrl,
-                      wordCount: article.textContent
-                        ? article.textContent.split(/\s+/).length
-                        : 0,
-                      length: article.length,
+                      wordCount: result.word_count,
+                      length: result.word_count, // Mercuryではarticle.lengthの代わりにword_countを使用
                       processedAt: new Date().toISOString(),
+                      author: result.author,
+                      date_published: result.date_published,
+                      lead_image_url: result.lead_image_url,
                     };
 
                     const yamlFrontmatter = yamlDump(metadata);
