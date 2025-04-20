@@ -27,6 +27,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@postlight/parser": "^2.2.3",
     "chalk": "^5.4.1",
