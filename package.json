@@ -1,6 +1,6 @@
 {
   "name": "@mkusaka/sitemap-crawler",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Extract content from sitemap URLs and save as markdown files",
   "main": "dist/index.js",
   "bin": {
