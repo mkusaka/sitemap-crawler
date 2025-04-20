@@ -8,6 +8,9 @@ import { writeFile, mkdir } from "fs/promises";
 import { dirname, resolve } from "path";
 import Sitemapper from "sitemapper";
 import TurndownService from "turndown";
+import pRetry from "p-retry";
+import pThrottle from "p-throttle";
+import { dump as yamlDump } from "js-yaml";
 
 const turndownService = new TurndownService();
 
@@ -84,79 +87,121 @@ program
           )
         );
 
-        for (let i = 0; i < sites.length; i++) {
-          const siteUrl = sites[i];
-          console.log(
-            chalk.blue(`Processing ${i + 1}/${sites.length}: ${siteUrl}`)
-          );
+        const throttle =
+          rateLimitPerSecond > 0
+            ? pThrottle({
+                limit: rateLimitPerSecond,
+                interval: 1000,
+              })
+            : (fn: Function) => fn;
 
-          try {
-            if (rateLimitPerSecond > 0 && i > 0) {
-              const delayMs = 1000 / rateLimitPerSecond;
-              await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
+        const results = await Promise.allSettled(
+          sites.map(async (siteUrl: string, i: number) => {
+            console.log(
+              chalk.blue(`Processing ${i + 1}/${sites.length}: ${siteUrl}`)
+            );
 
-            console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
-            const dom = await JSDOM.fromURL(siteUrl);
-            
-            const reader = new Readability(dom.window.document);
-            const article = reader.parse();
-            
-            if (!article) {
-              console.log(chalk.yellow(`No content found for ${siteUrl}`));
-              continue;
-            }
-            
-            const markdown = turndownService.turndown(article.content || "");
-            
-            const metadata = {
-              title: article.title,
-              excerpt: article.excerpt,
-              siteName: article.siteName,
-              url: siteUrl,
-              wordCount: article.textContent ? article.textContent.split(/\s+/).length : 0,
-              length: article.length,
-            };
-            
-            const content = `---
-title: ${metadata.title || ""}
-url: ${metadata.url}
-siteName: ${metadata.siteName || ""}
-excerpt: ${metadata.excerpt || ""}
-wordCount: ${metadata.wordCount}
----
+            try {
+              return await throttle(async () => {
+                return await pRetry(
+                  async () => {
+                    console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
+                    
+                    const dom = await JSDOM.fromURL(siteUrl);
+                    const reader = new Readability(dom.window.document);
+                    const article = reader.parse();
+                    
+                    if (!article) {
+                      console.log(chalk.yellow(`No content found for ${siteUrl}`));
+                      throw new Error("No content found");
+                    }
+                    
+                    const markdown = turndownService.turndown(article.content || "");
+                    
+                    const metadata = {
+                      title: article.title,
+                      excerpt: article.excerpt,
+                      siteName: article.siteName,
+                      url: siteUrl,
+                      wordCount: article.textContent ? article.textContent.split(/\s+/).length : 0,
+                      length: article.length,
+                      processedAt: new Date().toISOString(),
+                    };
+                    
+                    const yamlFrontmatter = yamlDump(metadata);
+                    const content = `---
+${yamlFrontmatter}---
 
 # ${metadata.title || "Untitled"}
 
 ${markdown}
 `;
 
-            const filename = urlToFilename(siteUrl);
-            const filePath = resolve(outputPath, filename);
-            
-            await writeFile(filePath, content, "utf-8");
-            console.log(chalk.green(`Saved to ${filePath}`));
-            
-          } catch (error) {
-            console.error(
-              chalk.red(`Error processing ${siteUrl}:`),
-              error instanceof Error ? error.message : "Unknown error occurred"
-            );
-            
-            if (!options.continue) {
+                    const filename = urlToFilename(siteUrl);
+                    const filePath = resolve(outputPath, filename);
+                    
+                    await writeFile(filePath, content, "utf-8");
+                    console.log(chalk.green(`Saved to ${filePath}`));
+                    
+                    return { success: true, url: siteUrl, path: filePath };
+                  },
+                  {
+                    retries: parseInt(options.retries || "3"),
+                    factor: 2, // Exponential factor (2 means delay doubles each time)
+                    minTimeout: parseInt(options.retryDelay || "1000"), // Initial delay
+                    maxTimeout: 60000, // Maximum delay of 60 seconds
+                    onFailedAttempt: (error) => {
+                      const retryCount = error.attemptNumber;
+                      const maxRetries = parseInt(options.retries || "3");
+                      const nextRetryDelay = Math.min(
+                        parseInt(options.retryDelay || "1000") *
+                          Math.pow(2, retryCount - 1),
+                        60000
+                      );
+                      console.log(
+                        chalk.yellow(
+                          `Attempt ${retryCount}/${maxRetries} failed for ${siteUrl}: ${error.message}`
+                        )
+                      );
+                      console.log(
+                        chalk.yellow(
+                          `Next retry in ${nextRetryDelay}ms with exponential backoff`
+                        )
+                      );
+                    },
+                  }
+                );
+              });
+            } catch (error) {
               console.error(
-                chalk.red(
-                  "Stopping due to error. Use --continue to process despite errors."
-                )
+                chalk.red(`Error processing ${siteUrl} after all retry attempts:`),
+                error instanceof Error ? error.message : "Unknown error occurred"
               );
-              process.exit(1);
+              
+              if (!options.continue) {
+                console.error(
+                  chalk.red(
+                    "Stopping due to error. Use --continue to process despite errors."
+                  )
+                );
+                process.exit(1);
+              }
+              
+              return { success: false, url: siteUrl, error };
             }
-          }
-        }
+          })
+        );
+
+        const successful = results.filter(
+          (result) => result.status === "fulfilled"
+        ).length;
+        const failed = results.filter(
+          (result) => result.status === "rejected"
+        ).length;
 
         console.log(
           chalk.green(
-            `Completed processing ${sites.length} URLs from sitemap`
+            `Completed processing ${sites.length} URLs from sitemap: ${successful} successful, ${failed} failed`
           )
         );
         process.exit(0);
