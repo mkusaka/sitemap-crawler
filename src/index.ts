@@ -82,13 +82,91 @@ program
           ),
         );
 
-        const throttle =
+        // URL処理関数を定義
+        const processUrl = async (siteUrl: string) => {
+          console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
+
+          const result = await Parser.parse(siteUrl, {
+            contentType: "markdown",
+          });
+
+          if (!result || !result.content) {
+            console.log(chalk.yellow(`No content found for ${siteUrl}`));
+            throw new Error("No content found");
+          }
+
+          const markdown = result.content;
+
+          const metadata = {
+            title: result.title,
+            excerpt: result.excerpt,
+            siteName: result.domain,
+            url: siteUrl,
+            wordCount: result.word_count,
+            length: result.word_count, // Using word_count instead of article.length from Readability
+            processedAt: new Date().toISOString(),
+            author: result.author,
+            date_published: result.date_published,
+            lead_image_url: result.lead_image_url,
+          };
+
+          const yamlFrontmatter = yamlDump(metadata);
+          const content = `---
+${yamlFrontmatter}---
+
+# ${metadata.title || "Untitled"}
+
+${markdown}
+`;
+
+          const filename = urlToFilename(siteUrl);
+          const filePath = resolve(outputPath, filename);
+
+          await writeFile(filePath, content, "utf-8");
+          console.log(chalk.green(`Saved to ${filePath}`));
+
+          return { success: true, url: siteUrl, path: filePath };
+        };
+
+        // リトライ設定
+        const retryOptions = {
+          retries: parseInt(options.retries || "3"),
+          factor: 2, // Exponential factor (2 means delay doubles each time)
+          minTimeout: parseInt(options.retryDelay || "1000"), // Initial delay
+          maxTimeout: 60000, // Maximum delay of 60 seconds
+          onFailedAttempt: (error: any) => {
+            const retryCount = error.attemptNumber;
+            const maxRetries = parseInt(options.retries || "3");
+            const nextRetryDelay = Math.min(
+              parseInt(options.retryDelay || "1000") *
+                Math.pow(2, retryCount - 1),
+              60000,
+            );
+            console.log(
+              chalk.yellow(
+                `Attempt ${retryCount}/${maxRetries} failed for ${error.options?.url || "unknown URL"}: ${error.message}`,
+              ),
+            );
+            console.log(
+              chalk.yellow(
+                `Next retry in ${nextRetryDelay}ms with exponential backoff`,
+              ),
+            );
+          },
+        };
+
+        // スロットリング関数を作成
+        const throttledFn =
           rateLimitPerSecond > 0
             ? pThrottle({
                 limit: rateLimitPerSecond,
                 interval: 1000,
+              })(async (siteUrl: string) => {
+                return await pRetry(() => processUrl(siteUrl), retryOptions);
               })
-            : (fn: Function) => fn;
+            : async (siteUrl: string) => {
+                return await pRetry(() => processUrl(siteUrl), retryOptions);
+              };
 
         const results = await Promise.allSettled(
           sites.map(async (siteUrl: string, i: number) => {
@@ -97,81 +175,7 @@ program
             );
 
             try {
-              return await throttle(async () => {
-                return await pRetry(
-                  async () => {
-                    console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
-
-                    const result = await Parser.parse(siteUrl, {
-                      contentType: "markdown",
-                    });
-
-                    if (!result || !result.content) {
-                      console.log(
-                        chalk.yellow(`No content found for ${siteUrl}`),
-                      );
-                      throw new Error("No content found");
-                    }
-
-                    const markdown = result.content;
-
-                    const metadata = {
-                      title: result.title,
-                      excerpt: result.excerpt,
-                      siteName: result.domain,
-                      url: siteUrl,
-                      wordCount: result.word_count,
-                      length: result.word_count, // Using word_count instead of article.length from Readability
-                      processedAt: new Date().toISOString(),
-                      author: result.author,
-                      date_published: result.date_published,
-                      lead_image_url: result.lead_image_url,
-                    };
-
-                    const yamlFrontmatter = yamlDump(metadata);
-                    const content = `---
-${yamlFrontmatter}---
-
-# ${metadata.title || "Untitled"}
-
-${markdown}
-`;
-
-                    const filename = urlToFilename(siteUrl);
-                    const filePath = resolve(outputPath, filename);
-
-                    await writeFile(filePath, content, "utf-8");
-                    console.log(chalk.green(`Saved to ${filePath}`));
-
-                    return { success: true, url: siteUrl, path: filePath };
-                  },
-                  {
-                    retries: parseInt(options.retries || "3"),
-                    factor: 2, // Exponential factor (2 means delay doubles each time)
-                    minTimeout: parseInt(options.retryDelay || "1000"), // Initial delay
-                    maxTimeout: 60000, // Maximum delay of 60 seconds
-                    onFailedAttempt: (error) => {
-                      const retryCount = error.attemptNumber;
-                      const maxRetries = parseInt(options.retries || "3");
-                      const nextRetryDelay = Math.min(
-                        parseInt(options.retryDelay || "1000") *
-                          Math.pow(2, retryCount - 1),
-                        60000,
-                      );
-                      console.log(
-                        chalk.yellow(
-                          `Attempt ${retryCount}/${maxRetries} failed for ${siteUrl}: ${error.message}`,
-                        ),
-                      );
-                      console.log(
-                        chalk.yellow(
-                          `Next retry in ${nextRetryDelay}ms with exponential backoff`,
-                        ),
-                      );
-                    },
-                  },
-                );
-              });
+              return await throttledFn(siteUrl);
             } catch (error) {
               console.error(
                 chalk.red(
