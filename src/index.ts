@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import Parser from "@postlight/parser";
 import chalk from "chalk";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, access, constants } from "fs/promises";
 import { dirname, resolve } from "path";
 import Sitemapper from "sitemapper";
 import pRetry from "p-retry";
@@ -19,6 +19,7 @@ interface CrawlOptions {
   retries?: string;
   retryDelay?: string;
   rateLimit?: string;
+  cache?: boolean;
 }
 
 function urlToFilename(url: string): string {
@@ -42,6 +43,10 @@ program
   .argument("<output-dir>", "Directory to save extracted markdown files")
   .option("--debug", "Enable debug mode")
   .option("--continue", "Continue processing even if an URL fails")
+  .option(
+    "--cache",
+    "Skip processing if the file already exists in the output directory",
+  )
   .option(
     "-r, --retries <number>",
     "Number of retry attempts for failed URLs",
@@ -85,6 +90,26 @@ program
         // URL処理関数を定義
         const processUrl = async (siteUrl: string) => {
           console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
+
+          const filename = urlToFilename(siteUrl);
+          const filePath = resolve(outputPath, filename);
+
+          if (options.cache) {
+            try {
+              await access(filePath, constants.F_OK);
+              console.log(
+                chalk.yellow(
+                  `File ${filePath} already exists, skipping (--cache enabled)`,
+                ),
+              );
+              return {
+                success: true,
+                url: siteUrl,
+                path: filePath,
+                cached: true,
+              };
+            } catch (error) {}
+          }
 
           const result = await Parser.parse(siteUrl, {
             contentType: "html",
@@ -148,9 +173,6 @@ ${yamlFrontmatter}---
 
 ${markdown}
 `;
-
-          const filename = urlToFilename(siteUrl);
-          const filePath = resolve(outputPath, filename);
 
           await writeFile(filePath, content, "utf-8");
           console.log(chalk.green(`Saved to ${filePath}`));
