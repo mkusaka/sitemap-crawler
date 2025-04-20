@@ -123,7 +123,7 @@ program
                       siteName: result.domain,
                       url: siteUrl,
                       wordCount: result.word_count,
-                      length: result.word_count, // Mercuryではarticle.lengthの代わりにword_countを使用
+                      length: result.word_count, // Using word_count instead of article.length from Readability
                       processedAt: new Date().toISOString(),
                       author: result.author,
                       date_published: result.date_published,
