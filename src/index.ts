@@ -95,20 +95,21 @@ program
             throw new Error("No content found");
           }
 
-          const container = new JSDOM().window.document.createElement('div');
+          const container = new JSDOM().window.document.createElement("div");
           container.innerHTML = result.content;
 
-          container.querySelectorAll('a[href], img[src], script[src], link[href]').forEach(el => {
-            const attr = el.hasAttribute('href') ? 'href' : 'src';
-            const original = el.getAttribute(attr);
-            try {
-              if (original) {
-                const absolute = new URL(original, result.url).href;
-                el.setAttribute(attr, absolute);
-              }
-            } catch (e) {
-            }
-          });
+          container
+            .querySelectorAll("a[href], img[src], script[src], link[href]")
+            .forEach((el) => {
+              const attr = el.hasAttribute("href") ? "href" : "src";
+              const original = el.getAttribute(attr);
+              try {
+                if (original) {
+                  const absolute = new URL(original, result.url).href;
+                  el.setAttribute(attr, absolute);
+                }
+              } catch (e) {}
+            });
 
           const processedHtml = container.innerHTML;
 
@@ -118,7 +119,9 @@ program
           });
 
           if (!markdownResult || !markdownResult.content) {
-            console.log(chalk.yellow(`Failed to convert to markdown for ${siteUrl}`));
+            console.log(
+              chalk.yellow(`Failed to convert to markdown for ${siteUrl}`),
+            );
             throw new Error("Markdown conversion failed");
           }
 
