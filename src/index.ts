@@ -22,7 +22,7 @@ interface CrawlOptions {
 }
 
 function urlToFilename(url: string): string {
-  const md5Hash = crypto.createHash('md5').update(url).digest('hex');
+  const md5Hash = crypto.createHash("md5").update(url).digest("hex");
   return `${md5Hash}.md`;
 }
 
