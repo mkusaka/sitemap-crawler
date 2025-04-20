@@ -24,21 +24,19 @@
   "author": "mkusaka",
   "license": "MIT",
   "dependencies": {
-    "@mozilla/readability": "^0.6.0",
+    "@postlight/parser": "^2.2.3",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "js-yaml": "^4.1.0",
     "jsdom": "^26.1.0",
     "p-retry": "^6.2.1",
     "p-throttle": "^7.0.0",
-    "sitemapper": "^3.2.20",
-    "turndown": "^7.2.0"
+    "sitemapper": "^3.2.20"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.14.1",
-    "@types/turndown": "^5.0.5",
     "prettier": "^3.5.3",
     "tsx": "^4.19.3",
     "typescript": "^5.8.3"
