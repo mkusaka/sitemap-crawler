@@ -9,10 +9,11 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit -p ."
   },
   "keywords": [
     "sitemap",
@@ -39,6 +40,7 @@
     "@types/node": "^22.14.1",
     "@types/turndown": "^5.0.5",
     "prettier": "^3.5.3",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.3"
   }
 }
