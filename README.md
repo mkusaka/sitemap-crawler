@@ -46,6 +46,7 @@ pnpm run build
 
 - `--debug`: Enable debug mode
 - `--continue`: Continue processing even if a URL fails
+- `--cache`: Skip processing if the file already exists in the output directory
 - `-r, --retries <number>`: Number of retry attempts for failed URLs (default: 3)
 - `-d, --retry-delay <number>`: Initial delay between retries in milliseconds (default: 1000)
 - `-l, --rate-limit <number>`: Maximum number of requests per second (default: 1, 0 to disable)
