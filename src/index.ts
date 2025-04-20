@@ -10,6 +10,7 @@ import Sitemapper from "sitemapper";
 import pRetry from "p-retry";
 import pThrottle from "p-throttle";
 import { dump as yamlDump } from "js-yaml";
+import crypto from "crypto";
 
 interface CrawlOptions {
   output?: string;
@@ -21,11 +22,8 @@ interface CrawlOptions {
 }
 
 function urlToFilename(url: string): string {
-  const urlObj = new URL(url);
-  let filename = urlObj.pathname.replace(/^\//, "").replace(/\//g, "-");
-  if (!filename) filename = "index";
-  if (!filename.endsWith(".md")) filename += ".md";
-  return filename;
+  const md5Hash = crypto.createHash("md5").update(url).digest("hex");
+  return `${md5Hash}.md`;
 }
 
 const program = new Command();
