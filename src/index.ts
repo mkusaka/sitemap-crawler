@@ -108,7 +108,9 @@ program
                     console.log(chalk.blue(`Fetching URL: ${siteUrl}`));
 
                     const dom = await JSDOM.fromURL(siteUrl);
-                    const reader = new Readability(dom.window.document);
+                    const reader = new Readability(dom.window.document, {
+                      keepClasses: true,
+                    });
                     const article = reader.parse();
 
                     if (!article) {
