@@ -29,9 +29,9 @@ function urlToFilename(url: string): string {
 const program = new Command();
 
 program
-  .name("sitemap-crawler")
+  .name("@mkusaka/sitemap-crawler")
   .description("Extract content from sitemap URLs and save as markdown files")
-  .version("1.0.0");
+  .version("0.0.1");
 
 program
   .command("crawl")

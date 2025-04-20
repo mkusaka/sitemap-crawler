@@ -12,7 +12,13 @@ A command-line tool to extract content from sitemap URLs and save as markdown fi
 ## Installation
 
 ```bash
-# Clone the repository
+# Install globally from npm
+npm install -g @mkusaka/sitemap-crawler
+
+# Or use with npx
+npx @mkusaka/sitemap-crawler <command>
+
+# Alternatively, clone the repository
 git clone https://github.com/mkusaka/sitemap-crawler.git
 cd sitemap-crawler
 
@@ -21,22 +27,19 @@ pnpm install
 
 # Build the project
 pnpm run build
-
-# Link the CLI globally (optional)
-pnpm link --global
 ```
 
 ## Usage
 
 ```bash
 # Basic usage
-sitemap-crawler crawl <sitemap-url> <output-directory>
+@mkusaka/sitemap-crawler crawl <sitemap-url> <output-directory>
 
 # Example
-sitemap-crawler crawl https://example.com/sitemap.xml ./output
+@mkusaka/sitemap-crawler crawl https://example.com/sitemap.xml ./output
 
 # With options
-sitemap-crawler crawl https://example.com/sitemap.xml ./output --continue --rate-limit 2
+@mkusaka/sitemap-crawler crawl https://example.com/sitemap.xml ./output --continue --rate-limit 2
 ```
 
 ### Options
